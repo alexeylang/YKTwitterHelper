@@ -21,6 +21,7 @@
 @interface YATTwitterHelper ()
 
 @property (nonatomic, strong) TWAPIManager  *apiManager;
+@property (nonatomic, strong) ACAccountStore  *accountStore;
 @property (nonatomic, strong) NSArray       *accounts;
 @property (nonatomic, copy) AuthSuccessCallback successCallback;
 @property (nonatomic, copy) FailureCallback failureCallback;
@@ -39,6 +40,7 @@
         _apiManager = [TWAPIManager new];
         _apiManager.consumerKey = consumerKey;
         _apiManager.consumerSecret = consumerSecret;
+        _accountStore = [ACAccountStore new];
     }
     return self;
 }
@@ -54,15 +56,14 @@
         return;
     }
     
-    ACAccountStore *accountStore = [ACAccountStore new];
-    ACAccountType *twitterType = [accountStore accountTypeWithAccountTypeIdentifier:ACAccountTypeIdentifierTwitter];
+    ACAccountType *twitterType = [self.accountStore accountTypeWithAccountTypeIdentifier:ACAccountTypeIdentifierTwitter];
 
     __weak YATTwitterHelper *weakSelf = self;
-    [accountStore requestAccessToAccountsWithType:twitterType options:NULL completion:^(BOOL granted, NSError *error) {
+    [self.accountStore requestAccessToAccountsWithType:twitterType options:NULL completion:^(BOOL granted, NSError *error) {
         __unsafe_unretained YATTwitterHelper *newSelf = weakSelf;
         
         if (granted) {
-            self.accounts = [accountStore accountsWithAccountType:twitterType];
+            self.accounts = [self.accountStore accountsWithAccountType:twitterType];
             if (newSelf.accounts.count == 1) {
                newSelf.successCallback(self.accounts[0]);
             } else {
