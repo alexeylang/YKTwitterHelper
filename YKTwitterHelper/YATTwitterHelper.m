@@ -34,7 +34,7 @@
 - (instancetype)initWithKey:(NSString *)consumerKey andSecret:(NSString *)consumerSecret {
     NSParameterAssert(consumerKey);
     NSParameterAssert(consumerSecret);
-    
+
     self = [super init];
     if (self) {
         _apiManager = [TWAPIManager new];
@@ -50,58 +50,66 @@
 - (void)authWithSuccess:(AuthSuccessCallback)onSuccess failure:(FailureCallback)onError {
     self.successCallback = onSuccess;
     self.failureCallback = onError;
-    
+
     if (![TWAPIManager isLocalTwitterAccountAvailable]) {
         if (onError) onError(NoAccountFoundError);
         return;
     }
-    
-    ACAccountType *twitterType = [self.accountStore accountTypeWithAccountTypeIdentifier:ACAccountTypeIdentifierTwitter];
 
+    ACAccountType *twitterType = [self.accountStore accountTypeWithAccountTypeIdentifier:ACAccountTypeIdentifierTwitter];
     __weak YATTwitterHelper *weakSelf = self;
+
     [self.accountStore requestAccessToAccountsWithType:twitterType options:NULL completion:^(BOOL granted, NSError *error) {
-        __unsafe_unretained YATTwitterHelper *newSelf = weakSelf;
-        
+        __strong YATTwitterHelper *newSelf = weakSelf;
+
         if (granted) {
             self.accounts = [self.accountStore accountsWithAccountType:twitterType];
             if (newSelf.accounts.count == 1) {
                newSelf.successCallback(self.accounts[0]);
             } else {
                 UIActionSheet *sheet = [[UIActionSheet alloc] init];
-                
+
                 for (ACAccount *acct in self.accounts) {
                     [sheet addButtonWithTitle:acct.username];
                 }
-                
+
                 sheet.delegate = newSelf;
                 sheet.cancelButtonIndex = [sheet addButtonWithTitle:@"Cancel"];
-                
+
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [sheet showInView:[UIApplication sharedApplication].keyWindow];
                 });
             }
-            
+
         } else {
-            if (onError) onError(AccessDeniedError);
+            if (onError) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    onError(AccessDeniedError);
+                });
+            }
         }
     }];
 }
 
 - (void)reverseAuthWithSuccess:(ReverseAuthSuccessCallback)onSuccess failure:(FailureCallback)onError {
+    __weak YATTwitterHelper *weakSelf = self;
+
     [self authWithSuccess:^(ACAccount *account) {
-        [self.apiManager performReverseAuthForAccount:account withHandler:^(NSData *responseData, NSError *error) {
+        __strong YATTwitterHelper *newSelf = weakSelf;
+
+        [newSelf.apiManager performReverseAuthForAccount:account withHandler:^(NSData *responseData, NSError *error) {
             if (responseData) {
                 NSString *responseStr = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
                 NSLog(@"Twitter Reverse Auth Response: %@", responseStr);
-                
+
                 NSArray *parts = [responseStr componentsSeparatedByString:@"&"];
                 NSMutableDictionary *data = [NSMutableDictionary new];
-                
+
                 for (NSString *part in parts) {
                     NSArray *field = [part componentsSeparatedByString:@"="];
                     [data setValue:field[1] forKey:field[0]];
                 }
-                
+
                 if (onSuccess) onSuccess(data);
             }
             else {
