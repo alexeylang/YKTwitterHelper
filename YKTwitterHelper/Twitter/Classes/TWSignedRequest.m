@@ -74,10 +74,20 @@
 
 - (NSURLRequest *)_buildRequest
 {
+    //  Build our parameter string
+    NSMutableArray *paramsStrings = [[NSMutableArray alloc] init];
+    [_parameters enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
+        [paramsStrings addObject:[NSString stringWithFormat:@"%@=%@", key, obj]];
+    }];
+    NSString *paramsAsString = [paramsStrings componentsJoinedByString:@"&"];
+
+    NSURL *url = _url;
+    NSData *bodyData = nil;
     NSString *method;
     
     switch (_signedRequestMethod) {
         case TWSignedRequestMethodPOST:
+            bodyData = [paramsAsString dataUsingEncoding:NSUTF8StringEncoding];
             method = TW_HTTP_METHOD_POST;
             break;
         case TWSignedRequestMethodDELETE:
@@ -85,19 +95,17 @@
             break;
         case TWSignedRequestMethodGET:
         default:
+            if ( [paramsAsString length] )
+            {
+                NSString *urlString = [NSString stringWithFormat:@"%@?%@", [_url absoluteString], paramsAsString];
+                url = [NSURL URLWithString:urlString];
+            }
             method = TW_HTTP_METHOD_GET;
     }
-    
-    //  Build our parameter string
-    NSMutableString *paramsAsString = [[NSMutableString alloc] init];
-    [_parameters enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
-         [paramsAsString appendFormat:@"%@=%@&", key, obj];
-     }];
-    
+
     //  Create the authorization header and attach to our request
-    NSData *bodyData = [paramsAsString dataUsingEncoding:NSUTF8StringEncoding];
-    NSString *authorizationHeader = OAuthorizationHeader(_url, method, bodyData, _consumerKey, _consumerSecret, _authToken, _authTokenSecret);
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:_url];
+    NSString *authorizationHeader = OAuthorizationHeader(url, method, bodyData, _consumerKey, _consumerSecret, _authToken, _authTokenSecret);
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     [request setTimeoutInterval:REQUEST_TIMEOUT_INTERVAL];
     [request setHTTPMethod:method];
     [request setValue:authorizationHeader forHTTPHeaderField:TW_HTTP_HEADER_AUTHORIZATION];
