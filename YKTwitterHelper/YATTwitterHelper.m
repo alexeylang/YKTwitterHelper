@@ -67,17 +67,17 @@
             if (newSelf.accounts.count == 1) {
                newSelf.successCallback(self.accounts[0]);
             } else {
-                UIActionSheet *sheet = [[UIActionSheet alloc] init];
-
-                for (ACAccount *acct in self.accounts) {
-                    [sheet addButtonWithTitle:acct.username];
-                }
-
-                sheet.delegate = newSelf;
-                sheet.cancelButtonIndex = [sheet addButtonWithTitle:@"Cancel"];
-
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    [sheet showInView:[UIApplication sharedApplication].keyWindow];
+                    UIActionSheet *sheet = [[UIActionSheet alloc] init];
+
+                    for (ACAccount *acct in self.accounts) {
+                        [sheet addButtonWithTitle:acct.username];
+                    }
+
+                    sheet.delegate = newSelf;
+                    sheet.cancelButtonIndex = [sheet addButtonWithTitle:@"Cancel"];
+
+                    [sheet showInView:[[UIApplication sharedApplication].keyWindow rootViewController].view];
                 });
             }
 
